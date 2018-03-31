@@ -1,5 +1,6 @@
 // core modules
 const fs = require("fs");
+const path = require("path");
 
 // community modules
 const Promise = require("promise");
@@ -36,15 +37,39 @@ class ConfigLoader {
         });
     }
 
-    static write(file, content) {
+    static _checkDirectory(file) {
         return new Promise((resolve, reject) => {
-            fs.writeFile(file, content, (error) => {
+            const directory = path.dirname(path.resolve(__dirname, file));
+
+            fs.access(directory, fs.constants.R_OK | fs.constants.W_OK, (error) => {
                 if (error) {
-                    reject(error);
+                    fs.mkdir(directory, (error) => {
+                        if (error) {
+                            reject(error);
+                        } else {
+                            resolve();
+                        }
+                    });
                 } else {
                     resolve();
                 }
             });
+        });
+    }
+
+    static write(file, content) {
+        return new Promise((resolve, reject) => {
+            ConfigLoader._checkDirectory(file)
+                .then(() => {
+                    fs.writeFile(file, content, (error) => {
+                        if (error) {
+                            reject(error);
+                        } else {
+                            resolve();
+                        }
+                    });
+                })
+                .catch(reject);
         });
     }
 
@@ -57,6 +82,38 @@ class ConfigLoader {
             } catch (error) {
                 reject(error);
             }
+        });
+    }
+
+    static load(file, defaults) {
+        return new Promise((resolve, reject) => {
+            fs.access(file, fs.constants.R_OK, (error) => {
+                if (error) {
+                    ConfigLoader.write(file, defaults)
+                        .then(resolve)
+                        .catch(reject);
+                } else {
+                    ConfigLoader.read(file)
+                        .then(resolve)
+                        .catch(reject);
+                }
+            });
+        });
+    }
+
+    static loadJSON(file, defaults) {
+        return new Promise((resolve, reject) => {
+            fs.access(file, fs.constants.R_OK, (error) => {
+                if (error) {
+                    ConfigLoader.writeJSON(file, defaults)
+                        .then(resolve)
+                        .catch(reject);
+                } else {
+                    ConfigLoader.readJSON(file)
+                        .then(resolve)
+                        .catch(reject);
+                }
+            });
         });
     }
 

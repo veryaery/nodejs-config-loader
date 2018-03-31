@@ -1,0 +1,19 @@
+{
+  "name": "xyncl",
+  "version": "1.0.0",
+  "description": "my config loader",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/xynfa/nodejs-config-loader.git"
+  },
+  "author": "xynfa",
+  "license": "UNLICENSED",
+  "bugs": {
+    "url": "https://github.com/xynfa/nodejs-config-loader/issues"
+  },
+  "homepage": "https://github.com/xynfa/nodejs-config-loader#readme"
+}

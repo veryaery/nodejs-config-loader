@@ -8,40 +8,12 @@ const Promise = require("promise");
 class ConfigLoader {
 
     constructor(files) {
-
+        this._loadFiles(files, __dirname, this);
     }
 
-    static read(file) {
+    _checkDirectory(directory) {
         return new Promise((resolve, reject) => {
-            fs.readFile(file, (error, data) => {
-                if (error) {
-                    reject(error);
-                } else {
-                    resolve(data.toString());
-                }
-            });
-        });
-    }
-
-    static readJSON(file) {
-        return new Promise((resolve, reject) => {
-            ConfigLoader.read(file)
-                .then(content => {
-                    try {
-                        resolve(JSON.parse(content));
-                    } catch (error) {
-                        reject(error);
-                    }
-                })
-                .catch(reject);
-        });
-    }
-
-    static _checkDirectory(file) {
-        return new Promise((resolve, reject) => {
-            const directory = path.dirname(path.resolve(__dirname, file));
-
-            fs.access(directory, fs.constants.R_OK | fs.constants.W_OK, (error) => {
+            fs.access(directory, (error) => {
                 if (error) {
                     fs.mkdir(directory, (error) => {
                         if (error) {
@@ -57,63 +29,73 @@ class ConfigLoader {
         });
     }
 
-    static write(file, content) {
-        return new Promise((resolve, reject) => {
-            ConfigLoader._checkDirectory(file)
-                .then(() => {
-                    fs.writeFile(file, content, (error) => {
-                        if (error) {
-                            reject(error);
-                        } else {
-                            resolve();
-                        }
-                    });
-                })
-                .catch(reject);
-        });
-    }
-
-    static writeJSON(file, object) {
-        return new Promise((resolve, reject) => {
+    async _loadFile(file, defaults, object) {
+        return new Promise(async (resolve, reject) => {
             try {
-                ConfigLoader.write(file, JSON.stringify(object, null, 4))
-                    .then(resolve)
-                    .catch(reject);
+                await this._checkDirectory(path.dirname(file));
             } catch (error) {
                 reject(error);
             }
-        });
-    }
 
-    static load(file, defaults) {
-        return new Promise((resolve, reject) => {
-            fs.access(file, fs.constants.R_OK, (error) => {
+            const name = path.basename(file, path.extname(file));
+
+            fs.access(file, (error) => {
                 if (error) {
-                    ConfigLoader.write(file, defaults)
-                        .then(resolve)
-                        .catch(reject);
+                    const data = defaults instanceof Object ? JSON.stringify(defaults, null, 4) : defaults;
+
+                    fs.writeFile(file, data, (error) => {
+                        if (error) {
+                            reject(error);
+                        } else {
+                            object[name] = defaults;
+                            resolve();
+                        }
+                    });
                 } else {
-                    ConfigLoader.read(file)
-                        .then(resolve)
-                        .catch(reject);
+                    fs.readFile(file, (error, data) => {
+                        if (error) {
+                            reject(error);
+                        } else {
+                            try {
+                                object[name] = JSON.parse(data.toString());
+                            } catch (error) {
+                                object[name] = data.toString();
+                            }
+
+                            resolve();
+                        }
+                    });
                 }
             });
         });
     }
 
-    static loadJSON(file, defaults) {
-        return new Promise((resolve, reject) => {
-            fs.access(file, fs.constants.R_OK, (error) => {
-                if (error) {
-                    ConfigLoader.writeJSON(file, defaults)
-                        .then(resolve)
-                        .catch(reject);
+    async _loadFiles(files, directory, object) {
+        return new Promise(async (resolve, reject) => {
+            for (const key in files) {
+                const defaults = files[key];
+                const keyFile = path.resolve(directory, key);
+
+                if (defaults instanceof Object && !path.extname(key)) {
+                    // it's a directory
+                    object[key] = {};
+
+                    try {
+                        await this._loadFiles(defaults, keyFile, object[key]);
+                    } catch (error) {
+                        reject(error);
+                    }
                 } else {
-                    ConfigLoader.readJSON(file)
-                        .then(resolve)
-                        .catch(reject);
+                    // it's a file
+                    try {
+                        await this._loadFile(keyFile, defaults, object);
+                    } catch (error) {
+                        reject(error);
+                    }
                 }
-            });
+
+                resolve();
+            }
         });
     }
 

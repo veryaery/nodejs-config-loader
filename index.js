@@ -91,7 +91,7 @@ async function loadFiles(files, directory) {
 }
 
 function load(files) {
-    return loadFiles(files, __dirname);
+    return loadFiles(files, process.cwd());
 }
 
 // exports
